@@ -32,6 +32,11 @@ class ThumbnailerNameMixin(object):
         """
         path, source_filename = os.path.split(self.name)
         source_extension = os.path.splitext(source_filename)[1][1:]
+
+        # If the source image is a jpeg, force transparent to false
+        if source_extension in ('jpg', 'jpeg'):
+            transparent = False
+
         if self.thumbnail_preserve_extensions is True or  \
             (self.thumbnail_preserve_extensions and
              source_extension.lower() in self.thumbnail_preserve_extensions):

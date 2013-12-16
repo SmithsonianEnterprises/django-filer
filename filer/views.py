@@ -105,9 +105,9 @@ def make_folder(request, folder_id=None):
                 new_folder.parent = folder
                 new_folder.owner = request.user
                 new_folder.save()
-                return HttpResponse('<html><body><script type="text/javascript">' + \
+                return HttpResponse('<script type="text/javascript">' + \
                                     'opener.dismissPopupAndReload(window);' + \
-                                    '</script></body></html>')
+                                    '</script>')
     else:
         new_folder_form = NewFolderForm()
     return render_to_response('admin/filer/folder/new_folder_form.html', {

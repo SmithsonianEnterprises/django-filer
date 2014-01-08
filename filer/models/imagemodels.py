@@ -26,6 +26,7 @@ from django.utils.translation import ugettext_lazy as _
 from filer import settings as filer_settings
 from filer.models.filemodels import File
 from filer.utils.filer_easy_thumbnails import FilerThumbnailer
+from easy_thumbnails.files import ThumbnailFile
 from filer.utils.pil_exif import get_exif_for_file
 
 logger = logging.getLogger("filer")
@@ -167,10 +168,16 @@ class Image(File):
 
     def _generate_thumbnails(self, required_thumbnails):
         _thumbnails = {}
+        thumbnailer = self.easy_thumbnails_thumbnailer
         for name, opts in required_thumbnails.iteritems():
             try:
                 opts.update({'subject_location': self.subject_location})
-                thumb = self.file.get_thumbnail(opts)
+                # Use lookup that will not generate thumbnails on the fly
+                # Requires the thumbnails are pre-generated
+                filename = thumbnailer.get_thumbnail_name(opts)
+                thumb = ThumbnailFile(
+                    name=filename, storage=thumbnailer.thumbnail_storage,
+                    thumbnail_options=opts)
                 _thumbnails[name] = thumb.url
             except Exception,e:
                 # catch exception and manage it. We can re-raise it for debugging

@@ -168,6 +168,9 @@ class Image(File):
 
     def _generate_thumbnails(self, required_thumbnails):
         _thumbnails = {}
+        if not self.file:
+            return _thumbnails
+
         thumbnailer = self.easy_thumbnails_thumbnailer
         for name, opts in required_thumbnails.iteritems():
             try:

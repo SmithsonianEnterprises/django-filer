@@ -280,7 +280,7 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             show_result_count = False
 
         folder_qs = folder_qs.order_by('name')
-        file_qs = file_qs.order_by('name')
+        file_qs = file_qs.order_by('-uploaded_at')
 
         folder_children = []
         folder_files = []
@@ -304,7 +304,7 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             }
         except:
             permissions = {}
-        folder_files.sort()
+        #folder_files.sort()
         items = folder_children + folder_files
         paginator = Paginator(items, FILER_PAGINATE_BY)
 

@@ -200,11 +200,17 @@ class Image(File):
                     'upscale': True,
                     'subject_location': self.subject_location})
             for size in filer_settings.FILER_ADMIN_ICON_SIZES)
-        return self._generate_thumbnails(required_thumbnails)
+        try:
+            return self._generate_thumbnails(required_thumbnails)
+        except IOError:
+            return {}
 
     @property
     def thumbnails(self):
-        return self._generate_thumbnails(Image.DEFAULT_THUMBNAILS)
+        try:
+            return self._generate_thumbnails(Image.DEFAULT_THUMBNAILS)
+        except IOError:
+            return {}
 
     @property
     def easy_thumbnails_thumbnailer(self):

@@ -102,6 +102,8 @@ def make_folder(request, folder_id=None):
             if (folder or FolderRoot()).contains_folder(new_folder.name):
                 new_folder_form._errors['name'] = new_folder_form.error_class([_('Folder with this name already exists.')])
             else:
+                site_id = request.session.get('current_site', {}).get('pk', None)
+                new_folder.site_id = site_id
                 new_folder.parent = folder
                 new_folder.owner = request.user
                 new_folder.save()

@@ -107,6 +107,8 @@ class Folder(models.Model, mixins.IconsMixin):
     created_at = models.DateTimeField(_('created at'), auto_now_add=True)
     modified_at = models.DateTimeField(_('modified at'),auto_now=True)
 
+    site = models.ForeignKey('sites.Site', null=True, blank=True)
+
     objects = FolderManager()
 
     @property

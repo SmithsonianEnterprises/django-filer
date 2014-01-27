@@ -292,6 +292,11 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             folder_qs = folder_qs.filter(Q(id__in=perms) | Q(owner=request.user))
             file_qs = file_qs.filter(Q(folder__id__in=perms) | Q(owner=request.user))
 
+        site_id = request.session.get('current_site', {}).get('pk', None)
+        if site_id:
+            folder_qs = folder_qs.filter(Q(site_id=site_id) | Q(site__isnull=True))
+            file_qs = file_qs.filter(Q(folder__site_id=site_id) | Q(folder__site__isnull=True))
+
         folder_children += folder_qs
         folder_files += file_qs
 

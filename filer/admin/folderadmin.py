@@ -296,6 +296,9 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
         if site_id:
             folder_qs = folder_qs.filter(Q(site_id=site_id) | Q(site__isnull=True))
             file_qs = file_qs.filter(Q(folder__site_id=site_id) | Q(folder__site__isnull=True))
+        else:
+            folder_qs = folder_qs.filter(site__isnull=True)
+            file_qs = file_qs.filter(folder__site__isnull=True)
 
         folder_children += folder_qs
         folder_files += file_qs

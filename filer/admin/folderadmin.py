@@ -136,6 +136,17 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
                         request=request, context=context, add=False,
                         change=False, form_url=form_url, obj=obj)
 
+    def has_change_permission(self, request, obj=None):
+        if not obj:
+            return True
+        site_id = request.session.get('current_site', {}).get('pk', None)
+        if site_id:
+            return obj and obj.site_id == site_id or obj.site == None
+        return obj.site == None
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj=obj)
+
     def delete_view(self, request, object_id, extra_context=None):
         """
         Overrides the default to enable redirecting to the directory view after
@@ -220,6 +231,8 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
     # custom views
     def directory_listing(self, request, folder_id=None, viewtype=None):
         clipboard = tools.get_user_clipboard(request.user)
+        site_id = request.session.get('current_site', {}).get('pk', None)
+
         if viewtype == 'images_with_missing_data':
             folder = ImagesWithMissingData()
         elif viewtype == 'unfiled_images':
@@ -238,7 +251,8 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
         elif folder_id == None:
             folder = FolderRoot()
         else:
-            folder = get_object_or_404(Folder, id=folder_id)
+            folder = get_object_or_404(Folder, Q(site_id=site_id) | Q(site__isnull=True),
+                                       id=folder_id)
         request.session['filer_last_folder_id'] = folder_id
 
         # Check actions to see if any are available on this changelist
@@ -292,7 +306,6 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             folder_qs = folder_qs.filter(Q(id__in=perms) | Q(owner=request.user))
             file_qs = file_qs.filter(Q(folder__id__in=perms) | Q(owner=request.user))
 
-        site_id = request.session.get('current_site', {}).get('pk', None)
         if site_id:
             folder_qs = folder_qs.filter(Q(site_id=site_id) | Q(site__isnull=True))
             file_qs = file_qs.filter(Q(folder__site_id=site_id) | Q(folder__site__isnull=True))

@@ -51,6 +51,16 @@ class FileAdmin(PrimitivePermissionAwareModelAdmin):
             )
         return fieldsets
 
+    def has_change_permission(self, request, obj=None):
+        if not obj:
+            return True
+        site_id = request.session.get('current_site', {}).get('pk', None)
+        if site_id:
+            return obj and obj.folder.site_id == site_id or obj.folder.site == None
+        return obj.folder.site == None
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_change_permission(request, obj=obj)
 
     def response_change(self, request, obj):
         """

@@ -294,7 +294,8 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             show_result_count = False
 
         folder_qs = folder_qs.order_by('name')
-        file_qs = file_qs.order_by('-uploaded_at')
+        file_order_field = getattr(django_settings, 'FILER_FILE_ORDER_FIELD', '-uploaded_at')
+        file_qs = file_qs.order_by(file_order_field)
 
         folder_children = []
         folder_files = []
@@ -325,7 +326,9 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
             }
         except:
             permissions = {}
-        #folder_files.sort()
+
+        if file_order_field == 'name':
+            folder_files.sort()
         items = folder_children + folder_files
         paginator = Paginator(items, FILER_PAGINATE_BY)
 

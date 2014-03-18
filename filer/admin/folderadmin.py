@@ -2,7 +2,7 @@
 from django import forms
 from django import template
 from django.core.exceptions import ValidationError
-from django.contrib.admin import helpers
+from django.contrib.admin import helpers, ACTION_CHECKBOX_NAME
 from django.contrib.admin.util import quote, unquote, capfirst
 from django.contrib import messages
 from django.utils.http import urlquote
@@ -49,6 +49,11 @@ class AddFolderPopupForm(forms.ModelForm):
         model = Folder
         fields = ('name',)
 
+def assign_order(modeladmin, request, files_qs, folders_qs):
+    return HttpResponseRedirect(reverse('assign-order')+"?ids=%s" % (
+        ",".join(str(i) for i in files_qs.values_list('id', flat=True))))
+assign_order.short_description = "Assign a slideshow order to the selected images"
+
 
 class FolderAdmin(PrimitivePermissionAwareModelAdmin):
     list_display = ('name',)
@@ -60,7 +65,7 @@ class FolderAdmin(PrimitivePermissionAwareModelAdmin):
     save_as = True  # see ImageAdmin
     actions = ['move_to_clipboard', 'files_set_public', 'files_set_private',
                'delete_files_or_folders', 'move_files_and_folders',
-               'copy_files_and_folders', 'resize_images', 'rename_files']
+               'copy_files_and_folders', 'resize_images', 'rename_files', assign_order]
 
     def get_form(self, request, obj=None, **kwargs):
         """

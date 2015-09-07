@@ -9,6 +9,7 @@ except ImportError:
         import ImageDraw
     except ImportError:
         raise ImportError("The Python Imaging Library was not found.")
+from django.utils import six
 from easy_thumbnails import processors
 from filer.settings import FILER_SUBJECT_LOCATION_IMAGE_DEBUG, FILER_WHITESPACE_COLOR
 
@@ -17,7 +18,7 @@ RE_SUBJECT_LOCATION = re.compile(r'^(\d+),(\d+)$')
 
 def normalize_subject_location(subject_location):
     if subject_location:
-        if isinstance(subject_location, basestring):
+        if isinstance(subject_location, six.string_types):
             m = RE_SUBJECT_LOCATION.match(subject_location)
             if m:
                 return (int(m.group(1)), int(m.group(2)))
@@ -29,7 +30,7 @@ def normalize_subject_location(subject_location):
     return False
 
 
-def scale_and_crop_with_subject_location(im, size, subject_location=False,
+def scale_and_crop_with_subject_location(im, size, subject_location=False, zoom=None,
                                          crop=False, upscale=False, **kwargs):
     """
     Like ``easy_thumbnails.processors.scale_and_crop``, but will use the
@@ -44,7 +45,7 @@ def scale_and_crop_with_subject_location(im, size, subject_location=False,
     subject_location = normalize_subject_location(subject_location)
     if not (subject_location and crop):
         # use the normal scale_and_crop
-        return processors.scale_and_crop(im, size, crop=crop,
+        return processors.scale_and_crop(im, size, zoom=zoom, crop=crop,
                                          upscale=upscale, **kwargs)
 
     # for here on we have a subject_location and cropping is on
@@ -64,6 +65,12 @@ def scale_and_crop_with_subject_location(im, size, subject_location=False,
         target_x = source_x * scale
     elif not target_y:
         target_y = source_y * scale
+
+    if zoom:
+        if not crop:
+            target_x = round(source_x * scale)
+            target_y = round(source_y * scale)
+        scale *= (100 + int(zoom)) / 100.0
 
     if scale < 1.0 or (scale > 1.0 and upscale):
         im = im.resize((int(source_x * scale), int(source_y * scale)),

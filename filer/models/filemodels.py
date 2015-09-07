@@ -1,16 +1,22 @@
 #-*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+import hashlib
+import os
+
 from django.core import urlresolvers
 from django.conf import settings
 from django.core.files.base import ContentFile
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+
+from polymorphic import PolymorphicModel, PolymorphicManager
+
+from filer import settings as filer_settings
 from filer.fields.multistorage_file import MultiStorageFileField
 from filer.models import mixins
-from filer import settings as filer_settings
 from filer.models.foldermodels import Folder
-from polymorphic import PolymorphicModel, PolymorphicManager
-import hashlib
-import os
+from filer.utils.compatibility import python_2_unicode_compatible, DJANGO_1_7
 
 
 class FileManager(PolymorphicManager):
@@ -27,6 +33,7 @@ class FileManager(PolymorphicManager):
         return [i for i in self.exclude(pk=file_obj.pk).filter(sha1=file_obj.sha1)]
 
 
+@python_2_unicode_compatible
 class File(PolymorphicModel, mixins.IconsMixin):
     file_type = 'File'
     _icon = "file"
@@ -121,7 +128,11 @@ class File(PolymorphicModel, mixins.IconsMixin):
     def generate_sha1(self):
         sha = hashlib.sha1()
         self.file.seek(0)
-        sha.update(self.file.read())
+        while True:
+            buf = self.file.read(104857600)
+            if not buf:
+                break
+            sha.update(buf)
         self.sha1 = sha.hexdigest()
         # to make sure later operations can read the whole file
         self.file.seek(0)
@@ -149,7 +160,7 @@ class File(PolymorphicModel, mixins.IconsMixin):
         # TODO: only do this if needed (depending on the storage backend the whole file will be downloaded)
         try:
             self.generate_sha1()
-        except Exception, e:
+        except Exception:
             pass
         super(File, self).save(*args, **kwargs)
     save.alters_data = True
@@ -168,11 +179,11 @@ class File(PolymorphicModel, mixins.IconsMixin):
             text = self.original_filename or 'unnamed file'
         else:
             text = self.name
-        text = u"%s" % (text,)
+        text = "%s" % (text,)
         return text
 
     def __lt__(self, other):
-        return cmp(self.label.lower(), other.label.lower()) < 0
+        return self.label.lower() < other.label.lower()
 
     def has_edit_permission(self, request):
         return self.has_generic_permission(request, 'edit')
@@ -200,29 +211,23 @@ class File(PolymorphicModel, mixins.IconsMixin):
         else:
             return False
 
-    def __unicode__(self):
+    def __str__(self):
         if self.name in ('', None):
-            text = u"%s" % (self.original_filename,)
+            text = "%s" % (self.original_filename,)
         else:
-            text = u"%s" % (self.name,)
+            text = "%s" % (self.name,)
         return text
 
     def get_admin_url_path(self):
+        if DJANGO_1_7:
+            model_name = self._meta.module_name
+        else:
+            model_name = self._meta.model_name
         return urlresolvers.reverse(
             'admin:%s_%s_change' % (self._meta.app_label,
-                                    self._meta.module_name,),
+                                    model_name,),
             args=(self.pk,)
         )
-
-    @property
-    def file_ptr(self):
-        """
-        Evil hack to get around the cascade delete problem with django_polymorphic.
-        Prevents ``AttributeError: 'File' object has no attribute 'file_ptr'``.
-        This is only a workaround for one level of subclassing. The hierarchy of
-        object in the admin delete view is wrong, but at least it works.
-        """
-        return self
 
     @property
     def url(self):

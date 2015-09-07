@@ -1,9 +1,17 @@
 #-*- coding: utf-8 -*-
 import os
+
+try:
+    from unittest import skipIf
+except ImportError: # for python 2.6
+    from unittest2 import skipIf
+
+import django
 from django.test import TestCase
 from django.core.urlresolvers import reverse
 import django.core.files
 from django.contrib.admin import helpers
+from django.contrib import admin
 from django.contrib.auth.models import User
 from django.conf import settings
 
@@ -13,6 +21,7 @@ from filer.models.imagemodels import Image
 from filer.models.clipboardmodels import Clipboard
 from filer.models.virtualitems import FolderRoot
 from filer.models import tools
+from filer.admin.folderadmin import FolderAdmin
 from filer.tests.helpers import (create_superuser, create_folder_structure,
                                  create_image, SettingsOverride)
 from filer import settings as filer_settings
@@ -32,6 +41,10 @@ class FilerFolderAdminUrlsTests(TestCase):
 
     def test_filer_make_root_folder_get(self):
         response = self.client.get(reverse('admin:filer-directory_listing-make_root_folder')+"?_popup=1")
+        self.assertEqual(response.status_code, 200)
+
+    def test_filer_make_root_folder_get_no_param(self):
+        response = self.client.get(reverse('admin:filer-directory_listing-make_root_folder'))
         self.assertEqual(response.status_code, 200)
 
     def test_filer_make_root_folder_post(self):
@@ -84,7 +97,7 @@ class FilerFolderAdminUrlsTests(TestCase):
                                     {"name":FOLDER_NAME, "_popup": 1})
         # second folder didn't get created
         self.assertEqual(Folder.objects.count(), 1)
-        self.assertIn('Folder with this name already exists', response.content)
+        self.assertContains(response, 'Folder with this name already exists')
 
     def test_validate_no_duplcate_folders_on_rename(self):
         self.assertEqual(Folder.objects.count(), 0)
@@ -102,7 +115,7 @@ class FilerFolderAdminUrlsTests(TestCase):
         response = self.client.post("/admin/filer/folder/%d/" % bar.pk, {
                 "name": "foo",
                 "_popup": 1})
-        self.assertIn('Folder with this name already exists', response.content)
+        self.assertContains(response, 'Folder with this name already exists')
         # refresh from db and validate that it's name didn't change
         bar = Folder.objects.get(pk=bar.pk)
         self.assertEqual(bar.name, "bar")
@@ -119,6 +132,19 @@ class FilerFolderAdminUrlsTests(TestCase):
         self.assertEqual(response.status_code, 302)
         folder = Folder.objects.get(pk=folder.pk)
         self.assertEqual(folder.owner.pk, another_superuser.pk)
+
+
+    @skipIf(django.get_version() < '1.7',
+            'admin context not supported in django < 1.7')
+    def test_folder_admin_uses_admin_context(self):
+        folder = Folder.objects.create(name='foo')
+        url = reverse('admin:filer-directory_listing', kwargs={
+            'folder_id': folder.id})
+        response = self.client.get(url)
+        self.assertTrue('site_header' in response.context)
+        self.assertTrue('site_title' in response.context)
+
+
 
 
 class FilerImageAdminUrlsTests(TestCase):
@@ -147,7 +173,7 @@ class FilerClipboardAdminUrlsTests(TestCase):
 
     def test_filer_upload_file(self, extra_headers={}):
         self.assertEqual(Image.objects.count(), 0)
-        file_obj = django.core.files.File(open(self.filename))
+        file_obj = django.core.files.File(open(self.filename, 'rb'))
         response = self.client.post(
             reverse('admin:filer-ajax_upload'),
             {'Filename': self.image_name, 'Filedata': file_obj, 'jsessionid': self.client.session.session_key,},
@@ -158,7 +184,7 @@ class FilerClipboardAdminUrlsTests(TestCase):
 
     def test_filer_ajax_upload_file(self):
         self.assertEqual(Image.objects.count(), 0)
-        file_obj = django.core.files.File(open(self.filename))
+        file_obj = django.core.files.File(open(self.filename, 'rb'))
         response = self.client.post(
             reverse('admin:filer-ajax_upload')+'?filename=%s' % self.image_name,
             data=file_obj.read(),
@@ -208,7 +234,7 @@ class BulkOperationsMixin(object):
 
     def create_image(self, folder, filename=None):
         filename = filename or 'test_image.jpg'
-        file_obj = django.core.files.File(open(self.filename), name=filename)
+        file_obj = django.core.files.File(open(self.filename, 'rb'), name=filename)
         image_obj = Image.objects.create(owner=self.superuser, original_filename=self.image_name, file=file_obj, folder=folder)
         image_obj.save()
         return image_obj
@@ -259,7 +285,7 @@ class FilerBulkOperationsTests(BulkOperationsMixin, TestCase):
           |   |-bar
           |
           |--bar
-        
+
         and try to move the owter bar in foo. This has to fail since it would result
         in two folders with the same name and parent.
         """
@@ -459,7 +485,7 @@ class FolderListingTest(TestCase):
             item_list = response.context['paginated_items'].object_list
             # user sees all items: FOO, BAR, BAZ, SAMP
             self.assertEquals(
-                set(folder.pk for folder in item_list),
+                set(folder.pk for folder, folder_perms in item_list),
                 set([self.foo_folder.pk, self.bar_folder.pk, self.baz_folder.pk,
                      self.spam_file.pk]))
 
@@ -473,7 +499,7 @@ class FolderListingTest(TestCase):
             # he doesn't see BAR, BAZ and SPAM because he doesn't own them
             # and no permission has been given
             self.assertEquals(
-                set(folder.pk for folder in item_list),
+                set(folder.pk for folder, folder_perms in item_list),
                 set([self.foo_folder.pk]))
 
     def test_with_permission_given_to_folder(self):
@@ -492,7 +518,7 @@ class FolderListingTest(TestCase):
             item_list = response.context['paginated_items'].object_list
             # user sees 2 folder : FOO, BAR
             self.assertEquals(
-                set(folder.pk for folder in item_list),
+                set(folder.pk for folder, folder_perms in item_list),
                 set([self.foo_folder.pk, self.bar_folder.pk]))
 
     def test_with_permission_given_to_parent_folder(self):
@@ -510,6 +536,33 @@ class FolderListingTest(TestCase):
             item_list = response.context['paginated_items'].object_list
             # user sees all items because he has permissions on the parent folder
             self.assertEquals(
-                set(folder.pk for folder in item_list),
+                set(folder.pk for folder, folder_perms in item_list),
                 set([self.foo_folder.pk, self.bar_folder.pk, self.baz_folder.pk,
                      self.spam_file.pk]))
+
+    def test_search_against_owner(self):
+        url = reverse('admin:filer-directory_listing',
+                      kwargs={'folder_id': self.parent.id})
+
+        response = self.client.get(url, {'q': 'joe'})
+        item_list = response.context['paginated_items'].object_list
+        self.assertEqual(len(item_list), 1)
+
+        response = self.client.get(url, {'q': 'admin'})
+        item_list = response.context['paginated_items'].object_list
+        self.assertEqual(len(item_list), 4)
+
+    def test_owner_search_fields(self):
+        folderadmin = FolderAdmin(Folder, admin.site)
+        self.assertEqual(folderadmin.owner_search_fields, ['username', 'first_name', 'last_name', 'email'])
+
+        folder_qs = folderadmin.filter_folder(Folder.objects.all(), ['joe@mata.com'])
+        self.assertEqual(len(folder_qs), 1)
+
+        class DontSearchOwnerEmailFolderAdmin(FolderAdmin):
+            owner_search_fields = ['username', 'first_name', 'last_name']
+
+        folderadmin = DontSearchOwnerEmailFolderAdmin(Folder, admin.site)
+
+        folder_qs = folderadmin.filter_folder(Folder.objects.all(), ['joe@mata.com'])
+        self.assertEqual(len(folder_qs), 0)

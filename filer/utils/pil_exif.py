@@ -9,6 +9,8 @@ except ImportError:
     except ImportError:
         raise ImportError("The Python Imaging Library was not found.")
 
+from django.core.files.storage import default_storage as storage
+
 
 def get_exif(im):
     try:
@@ -16,14 +18,14 @@ def get_exif(im):
     except:
         return {}
     ret = {}
-    for tag, value in exif_raw.items():
+    for tag, value in list(exif_raw.items()):
         decoded = ExifTags.TAGS.get(tag, tag)
         ret[decoded] = value
     return ret
 
 
 def get_exif_for_file(file_obj):
-    im = Image.open(file_obj, 'r')
+    im = Image.open(storage.open(file_obj.name), 'r')
     return get_exif(im)
 
 

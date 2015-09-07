@@ -1,15 +1,15 @@
 #-*- coding: utf-8 -*-
 from PIL import Image, ImageChops, ImageDraw
 
-try:
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-except ImportError:
-    from django.contrib.auth.models import User  # NOQA
 from filer.models.foldermodels import Folder
 from filer.models.clipboardmodels import Clipboard, ClipboardItem
 
 def create_superuser():
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+    except ImportError:
+        from django.contrib.auth.models import User  # NOQA
     superuser = User.objects.create_superuser('admin',
                                               'admin@free.fr',
                                               'secret')
@@ -24,7 +24,7 @@ def create_folder_structure(depth=2, sibling=2, parent=None):
     * parent: is the folder instance of the parent.
     """
     if depth > 0 and sibling > 0:
-        depth_range = range(1, depth+1)
+        depth_range = list(range(1, depth+1))
         depth_range.reverse()
         for d in depth_range:
             for s in range(1,sibling+1):
@@ -64,12 +64,12 @@ class SettingsOverride(object):
 
     def __enter__(self):
         self.old = {}
-        for key, value in self.overrides.items():
+        for key, value in list(self.overrides.items()):
             self.old[key] = getattr(self.settings_module, key, None)
             setattr(self.settings_module, key, value)
 
     def __exit__(self, _type, value, traceback):
-        for key, value in self.old.items():
+        for key, value in list(self.old.items()):
             if value is not None:
                 setattr(self.settings_module, key, value)
             else:

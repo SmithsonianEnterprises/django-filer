@@ -1,6 +1,7 @@
 #-*- coding: utf-8 -*-
 from django.template.loader import render_to_string
 import inspect
+import warnings
 from django import forms
 from django.conf import settings
 from django.contrib.admin.widgets import ForeignKeyRawIdWidget
@@ -9,6 +10,7 @@ from django.core.urlresolvers import reverse
 from django.db import models
 from django.utils.safestring import mark_safe
 from filer.utils.compatibility import truncate_words
+from filer.utils.model_label import get_model_label
 from django.utils.translation import ugettext as _
 from filer.models import Folder
 from filer.settings import FILER_STATICMEDIA_PREFIX
@@ -17,7 +19,7 @@ from filer.settings import FILER_STATICMEDIA_PREFIX
 class AdminFolderWidget(ForeignKeyRawIdWidget):
     choices = None
     input_type = 'hidden'
-    is_hidden = True
+    is_hidden = False
 
     def render(self, name, value, attrs=None):
         obj = self.obj_for_value(value)
@@ -40,7 +42,7 @@ class AdminFolderWidget(ForeignKeyRawIdWidget):
         params['select_folder'] = 1
         if params:
             url = '?' + '&amp;'.join(
-                            ['%s=%s' % (k, v) for k, v in params.items()])
+                            ['%s=%s' % (k, v) for k, v in list(params.items())])
         else:
             url = ''
         if not 'class' in attrs:
@@ -89,15 +91,12 @@ class AdminFolderFormField(forms.ModelChoiceField):
     def __init__(self, rel, queryset, to_field_name, *args, **kwargs):
         self.rel = rel
         self.queryset = queryset
+        self.limit_choices_to = kwargs.pop('limit_choices_to', None)
         self.to_field_name = to_field_name
         self.max_value = None
         self.min_value = None
         kwargs.pop('widget', None)
-        if 'admin_site' in inspect.getargspec(self.widget.__init__)[0]: # Django 1.4
-            widget_instance = self.widget(rel, site)
-        else: # Django <= 1.3
-            widget_instance = self.widget(rel)
-        forms.Field.__init__(self, widget=widget_instance, *args, **kwargs)
+        forms.Field.__init__(self, widget=self.widget(rel, site), *args, **kwargs)
 
     def widget_attrs(self, widget):
         widget.required = self.required
@@ -109,7 +108,17 @@ class FilerFolderField(models.ForeignKey):
     default_model_class = Folder
 
     def __init__(self, **kwargs):
-        return super(FilerFolderField, self).__init__(Folder, **kwargs)
+        # We hard-code the `to` argument for ForeignKey.__init__
+        dfl = get_model_label(self.default_model_class)
+        if "to" in kwargs.keys():  # pragma: no cover
+            old_to = get_model_label(kwargs.pop("to"))
+            if old_to != dfl:
+                msg = "%s can only be a ForeignKey to %s; %s passed" % (
+                    self.__class__.__name__, dfl, old_to
+                )
+                warnings.warn(msg, SyntaxWarning)
+        kwargs['to'] = dfl
+        super(FilerFolderField, self).__init__(**kwargs)
 
     def formfield(self, **kwargs):
         # This is a fairly standard way to set up some defaults

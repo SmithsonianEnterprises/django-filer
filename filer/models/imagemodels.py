@@ -1,6 +1,6 @@
 #-*- coding: utf-8 -*-
+from datetime import datetime
 import logging
-
 try:
     from PIL import Image as PILImage
 except ImportError:
@@ -8,19 +8,10 @@ except ImportError:
         import Image as PILImage
     except ImportError:
         raise ImportError("The Python Imaging Library was not found.")
-from datetime import datetime
-import os
 
-from django import VERSION
-if VERSION[:2] >= (1, 4):
-    from django.utils.timezone import now, make_aware, get_current_timezone
-else:
-    from datetime import datetime
-    def now(tz=None):
-        return datetime.now(tz)
-from django.core import urlresolvers
 from django.conf import settings
 from django.db import models
+from django.utils.timezone import now, make_aware, get_current_timezone
 from django.utils.translation import ugettext_lazy as _
 
 from filer import settings as filer_settings

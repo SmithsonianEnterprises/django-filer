@@ -1,15 +1,16 @@
 #-*- coding: utf-8 -*-
-import inspect
+import warnings
+
 from django import forms
-from django.conf import settings as globalsettings
 from django.contrib.admin.widgets import ForeignKeyRawIdWidget
 from django.contrib.admin.sites import site
-from django.core.exceptions import ImproperlyConfigured
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
+
 from filer.utils.compatibility import truncate_words
+from filer.utils.model_label import get_model_label
 from filer.models import File
 from filer import settings as filer_settings
 
@@ -30,7 +31,7 @@ class AdminFileWidget(ForeignKeyRawIdWidget):
                 file_obj = File.objects.get(pk=value)
                 related_url = file_obj.logical_folder.\
                                 get_admin_directory_listing_url_path()
-            except Exception,e:
+            except Exception as e:
                 # catch exception and manage it. We can re-raise it for debugging
                 # purposes and/or just logging it, provided user configured
                 # proper logging configuration
@@ -43,7 +44,7 @@ class AdminFileWidget(ForeignKeyRawIdWidget):
         params = self.url_parameters()
         if params:
             lookup_url = '?' + '&amp;'.join(
-                                ['%s=%s' % (k, v) for k, v in params.items()])
+                                ['%s=%s' % (k, v) for k, v in list(params.items())])
         else:
             lookup_url = ''
         if not 'class' in attrs:
@@ -84,7 +85,10 @@ class AdminFileWidget(ForeignKeyRawIdWidget):
         return obj
 
     class Media:
-        js = (filer_settings.FILER_STATICMEDIA_PREFIX + 'js/popup_handling.js',)
+        js = (
+            filer_settings.FILER_STATICMEDIA_PREFIX + 'js/popup_handling.js',
+            filer_settings.FILER_STATICMEDIA_PREFIX + 'js/widget.js',
+        )
 
 
 class AdminFileFormField(forms.ModelChoiceField):
@@ -96,12 +100,8 @@ class AdminFileFormField(forms.ModelChoiceField):
         self.to_field_name = to_field_name
         self.max_value = None
         self.min_value = None
-        other_widget = kwargs.pop('widget', None)
-        if 'admin_site' in inspect.getargspec(self.widget.__init__)[0]: # Django 1.4
-            widget_instance = self.widget(rel, site)
-        else: # Django <= 1.3
-            widget_instance = self.widget(rel)
-        forms.Field.__init__(self, widget=widget_instance, *args, **kwargs)
+        kwargs.pop('widget', None)
+        super(AdminFileFormField, self).__init__(queryset, widget=self.widget(rel, site), *args, **kwargs)
 
     def widget_attrs(self, widget):
         widget.required = self.required
@@ -113,10 +113,17 @@ class FilerFileField(models.ForeignKey):
     default_model_class = File
 
     def __init__(self, **kwargs):
-        # we call ForeignKey.__init__ with the Image model as parameter...
-        # a FilerImageFiled can only be a ForeignKey to a Image
-        return super(FilerFileField, self).__init__(
-            self.default_model_class, **kwargs)
+        # We hard-code the `to` argument for ForeignKey.__init__
+        dfl = get_model_label(self.default_model_class)
+        if "to" in kwargs.keys():  # pragma: no cover
+            old_to = get_model_label(kwargs.pop("to"))
+            if old_to != dfl:
+                msg = "%s can only be a ForeignKey to %s; %s passed" % (
+                    self.__class__.__name__, dfl, old_to
+                )
+                warnings.warn(msg, SyntaxWarning)
+        kwargs['to'] = dfl
+        super(FilerFileField, self).__init__(**kwargs)
 
     def formfield(self, **kwargs):
         # This is a fairly standard way to set up some defaults

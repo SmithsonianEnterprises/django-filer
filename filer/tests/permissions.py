@@ -1,9 +1,4 @@
 #-*- coding: utf-8 -*-
-try:
-    from django.contrib.auth import get_user_model
-    User = get_user_model()
-except ImportError:
-    from django.contrib.auth.models import User  # NOQA
 from django.contrib.auth.models import Group
 from django.core.files import File as DjangoFile
 from django.conf import settings
@@ -19,6 +14,11 @@ import os
 class FolderPermissionsTestCase(TestCase):
 
     def setUp(self):
+        try:
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+        except ImportError:
+            from django.contrib.auth.models import User  # NOQA
         self.superuser = create_superuser()
         self.client.login(username='admin', password='secret')
 
@@ -40,7 +40,7 @@ class FolderPermissionsTestCase(TestCase):
         self.filename = os.path.join(settings.FILE_UPLOAD_TEMP_DIR, self.image_name)
         self.img.save(self.filename, 'JPEG')
 
-        self.file = DjangoFile(open(self.filename), name=self.image_name)
+        self.file = DjangoFile(open(self.filename, 'rb'), name=self.image_name)
         # This is actually a "file" for filer considerations
         self.image = Image.objects.create(owner=self.superuser,
                                      original_filename=self.image_name,

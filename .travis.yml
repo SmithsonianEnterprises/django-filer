@@ -1,25 +1,66 @@
 language: python
+
 python:
   - 2.6
   - 2.7
+  - 3.3
+  - 3.4
+
+sudo: false
+
 install:
   - ./.travis_setup
+
 env:
-  - DJANGO="django>=1.3,<1.4" POLYMORPHIC="django_polymorphic<=0.4.0" EASY_THUMBNAILS="easy-thumbnails<1.2" MPTT="django-mptt<0.6"
-  - DJANGO="django>=1.4,<1.5"
-  - DJANGO="django>=1.5,<1.6" EASY_THUMBNAILS="easy-thumbnails>=1.2"
-  - DJANGO="https://github.com/django/django/archive/stable/1.6.x.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
-  - DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
-script: coverage run --rcfile=coverage.rc setup.py test
+  - DJANGO="Django>=1.4,<1.5" EASY_THUMBNAILS="easy-thumbnails>=1.2,<2.0"
+  - DJANGO="Django>=1.5,<1.6" EASY_THUMBNAILS="easy-thumbnails>=1.4,<2.0"
+  - DJANGO="Django>=1.6,<1.7" EASY_THUMBNAILS="easy-thumbnails>=1.4,<2.0"
+  - DJANGO="Django>=1.6,<1.7" EASY_THUMBNAILS="easy-thumbnails>2.0"
+  - DJANGO="Django>=1.6,<1.7" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+  - DJANGO="Django>=1.7,<1.8" EASY_THUMBNAILS="easy-thumbnails>2.0"
+  - DJANGO="Django>=1.7,<1.8" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+  - DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0"
+  - DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+  - DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>2.0"
+
+script: coverage run --rcfile=coverage.rc test_settings.py
+
 after_success:
-  coveralls --config_file=coverage.rc
+  - coveralls --config_file=coverage.rc
+  - mkdir -p shippable/codecoverage && cp coverage.xml shippable/codecoverage/coverage.xml
+
 matrix:
+  exclude:
+    - python: 2.6
+      env: DJANGO="Django>=1.7,<1.8" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 2.6
+      env: DJANGO="Django>=1.7,<1.8" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+    - python: 2.6
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 2.6
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+    - python: 2.6
+      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 3.3
+      env: DJANGO="Django>=1.4,<1.5" EASY_THUMBNAILS="easy-thumbnails>=1.2,<2.0"
+    - python: 3.4
+      env: DJANGO="Django>=1.4,<1.5" EASY_THUMBNAILS="easy-thumbnails>=1.2,<2.0"
   allow_failures:
-    - python: 2.6
-      env: DJANGO="https://github.com/django/django/archive/stable/1.6.x.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
-    - python: 2.6
-      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
     - python: 2.7
-      env: DJANGO="https://github.com/django/django/archive/stable/1.6.x.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
+      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 3.3
+      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 3.4
+      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>2.0"
     - python: 2.7
-      env: DJANGO="https://github.com/django/django/archive/master.zip" EASY_THUMBNAILS="easy-thumbnails>=1.4"
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 3.3
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 3.4
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0"
+    - python: 2.7
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+    - python: 3.3
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"
+    - python: 3.4
+      env: DJANGO="Django>=1.8,<1.9" EASY_THUMBNAILS="easy-thumbnails>2.0" CUSTOM_IMAGE="filer.test_utils.custom_image.models.Image"

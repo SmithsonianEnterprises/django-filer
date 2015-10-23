@@ -25,6 +25,7 @@ class ImageAdminForm(forms.ModelForm):
 
     class Meta:
         model = Image
+        fields = '__all__'
 
     class Media:
         css = {

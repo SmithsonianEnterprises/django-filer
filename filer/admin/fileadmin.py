@@ -14,6 +14,7 @@ from filer.views import (popup_param, selectfolder_param, popup_status,
 class FileAdminChangeFrom(forms.ModelForm):
     class Meta:
         model = File
+        fields = '__all__'
 
 
 class FileAdmin(PrimitivePermissionAwareModelAdmin):

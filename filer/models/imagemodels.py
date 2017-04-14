@@ -29,6 +29,8 @@ from filer.utils.filer_easy_thumbnails import FilerThumbnailer
 from easy_thumbnails.files import ThumbnailFile
 from filer.utils.pil_exif import get_exif_for_file
 
+from smithsonian.apps.core.templatetags.image_tags import thumbnail_url
+
 logger = logging.getLogger("filer")
 
 
@@ -175,14 +177,10 @@ class Image(File):
         for name, opts in required_thumbnails.iteritems():
             try:
                 opts.update({'subject_location': self.subject_location})
-                # Use lookup that will not generate thumbnails on the fly
-                # Requires the thumbnails are pre-generated
-                filename = thumbnailer.get_thumbnail_name(opts)
-                thumb = ThumbnailFile(
-                    name=filename, storage=thumbnailer.thumbnail_storage,
-                    thumbnail_options=opts)
-                _thumbnails[name] = thumb.url
-            except Exception,e:
+                # Use the smithsonian specific thumbnail_url generation.
+                # Will generate a url pointing to a Thumbor server
+                _thumbnails[name] = thumbnail_url(self.file.url, None, opts)
+            except Exception as e:
                 # catch exception and manage it. We can re-raise it for debugging
                 # purposes and/or just logging it, provided user configured
                 # proper logging configuration

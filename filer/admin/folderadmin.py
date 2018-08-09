@@ -50,7 +50,7 @@ class AddFolderPopupForm(forms.ModelForm):
         fields = ('name',)
 
 def assign_order(modeladmin, request, files_qs, folders_qs):
-    return HttpResponseRedirect(reverse('assign-order')+"?ids=%s" % (
+    return HttpResponseRedirect(reverse('admin:assign-order')+"?ids=%s" % (
         ",".join(str(i) for i in files_qs.values_list('id', flat=True))))
 assign_order.short_description = "Assign a slideshow order to the selected images"
 
